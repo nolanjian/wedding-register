@@ -30,3 +30,7 @@ _ReSharper*/
 .vs/
 #Nuget packages folder
 packages/
+client/.vscode/last.sql
+client/.vscode/launch.json
+client/debug
+request/debug
