@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"fmt"
+
 	"github.com/CodisLabs/codis/pkg/utils/log"
 	"github.com/PuerkitoBio/goquery"
 )
@@ -44,6 +46,11 @@ func (p *WebProxy) SetData(date string) error {
 
 func (p *WebProxy) getSelDate() string {
 	return p.time.Format("2006-01-02")
+}
+
+func (p *WebProxy) getyyData() string {
+	return p.time.Format("2006年01月02日")
+
 }
 
 func (p *WebProxy) Excute() error {
@@ -331,17 +338,26 @@ func (p *be) xuanzheyydate() string {
 }
 
 func (p *WebProxy) forthRequest(pBE *be) error {
+
+	seldate := p.getSelDate()
+	yytime := fmt.Sprintf("%s_%s_4401041_%s", pBE.beg, seldate, pBE.end)
+	xuanzheyydate := fmt.Sprintf("%s  %s", p.getyyData(), pBE.xuanzheyydate())
+
+	log.Debug(seldate)
+	log.Debug(yytime)
+	log.Debug(xuanzheyydate)
+
 	form := make(url.Values)
-	form.Set("seldate", "2017-05-06")
+	form.Set("seldate", seldate) //"2006-01-02"
 	form.Set("r_code", "4401041")
 	form.Set("man", "广东省广州市海珠区")
 	form.Set("woman", "广东省广州市越秀区")
 	form.Set("mqu", "440105")
 	form.Set("wqu", "440104")
 	form.Set("nd", "1")
-	form.Set("xuanzheyydate", "2017年05月06日  "+pBE.xuanzheyydate())
+	form.Set("xuanzheyydate", xuanzheyydate)
 	form.Set("deptname", "广州市越秀区民政局婚姻登记处")
-	form.Set("yytime", pBE.beg+"_2017-05-06_4401041_"+pBE.end)
+	form.Set("yytime", yytime)
 	form.Set("deptname", "广州市海珠区民政局婚姻登记处")
 
 	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {

@@ -8,7 +8,7 @@ import (
 
 func main() {
 	proxy := request.GetWebProxy()
-	proxy.SetData("2017-05-20")
+	proxy.SetData("2017-05-10")
 	if err := proxy.Excute(); err != nil {
 		log.Error(err)
 	}
