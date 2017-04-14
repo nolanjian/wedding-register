@@ -1,8 +1,8 @@
 package request
 
 import (
+	"GoUtils"
 	"errors"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,22 +10,24 @@ import (
 
 	"github.com/CodisLabs/codis/pkg/utils/log"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/mahonia"
 )
 
 type WebProxy struct {
-	cli    *http.Client
-	cookie []*http.Cookie
-	header http.Header
+	utils.HTTPUtil
 	thisID string
 	time   *time.Time
 }
 
 func GetWebProxy() *WebProxy {
 	return &WebProxy{
-		cli:    &http.Client{},
-		cookie: make([]*http.Cookie, 0),
-		header: make(http.Header),
+		utils.HTTPUtil{
+			Header:   make(http.Header),
+			Client:   new(http.Client),
+			Resp:     nil,
+			LastPage: "",
+		},
+		"",
+		nil,
 	}
 }
 
@@ -79,94 +81,6 @@ func (p *WebProxy) Excute() error {
 	return nil
 }
 
-func (p *WebProxy) getCharset(resp *http.Response) string {
-	for _, item := range resp.Header["Content-Type"] {
-		strTmp := strings.ToLower(item)
-		if index := strings.Index(strTmp, `charset=`); index >= 0 {
-			strRet := strTmp[index+len(`charset=`):]
-			return strings.Trim(strRet, "\t\n ")
-		}
-
-	}
-	return "utf-8"
-}
-
-func (p *WebProxy) storageCookie(resp *http.Response) {
-	if _, exist := resp.Header["Set-Cookie"]; exist {
-		log.Debug(resp.Cookies())
-		log.Debug(p.cookie)
-		p.cookie = resp.Cookies()
-		log.Debug(p.cookie)
-	}
-}
-
-func (p *WebProxy) request(method, reqURL string, form url.Values) (string, error) {
-	// url Parse
-	pURL, err := url.Parse(reqURL)
-	if err != nil {
-		log.Error(err)
-		return "", err
-	}
-
-	body := form.Encode()
-
-	// new request
-	req := &http.Request{
-		Method: strings.ToUpper(method),
-		URL:    pURL,
-	}
-
-	if form != nil {
-		req.Body = ioutil.NopCloser(strings.NewReader(body))
-		req.ContentLength = int64(len(body))
-		log.Debug(req.ContentLength)
-	}
-
-	// set header
-	req.Header = p.header
-
-	// restorage cookie
-	log.Debug(p.cookie)
-	for ii := range p.cookie {
-		req.AddCookie(p.cookie[ii])
-	}
-
-	// do request
-	resp, err := p.cli.Do(req)
-	if err != nil {
-		log.Error(err)
-		return "", err
-	}
-
-	// save cookie
-	p.storageCookie(resp)
-
-	// set Referer
-	//p.header["Referer"] = []string{resp.Request.URL.String()}
-	//log.Debug(p.header["Referer"])
-
-	// read page
-	charset := p.getCharset(resp)
-	dec := mahonia.NewDecoder(charset)
-	rd := dec.NewReader(resp.Body)
-	data, err := ioutil.ReadAll(rd)
-	if err != nil {
-		log.Error(err)
-		return "", err
-	}
-	html := string(data)
-	log.Debug(html)
-	return html, nil
-}
-
-func (p *WebProxy) Get(reqURL string) (string, error) {
-	return p.request("GET", reqURL, nil)
-}
-
-func (p *WebProxy) Post(reqURL string, form url.Values) (string, error) {
-	return p.request("POST", reqURL, form)
-}
-
 // # FIRST request
 //
 // GET http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_01.jsp?id=1 HTTP/1.1
@@ -180,7 +94,11 @@ func (p *WebProxy) Post(reqURL string, form url.Values) (string, error) {
 // Cookie: JSESSIONID=43633C0AA40BD42EA65B1715C1CDB4CC; UM_distinctid=15abe2878bf10-00755db2664684-637e7415-100200-15abe2878c4a
 
 func (p *WebProxy) FirstRequest() error {
-	html, err := p.Get(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_01.jsp?id=1`)
+	if err := p.Get(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_01.jsp?id=1`, nil); err != nil {
+		return err
+	}
+
+	html, err := p.ReadBodyString()
 	if err != nil {
 		return err
 	}
@@ -210,8 +128,13 @@ func (p *WebProxy) FirstRequest() error {
 
 func (p *WebProxy) SecondRequest() error {
 	form := make(url.Values)
-	form["nd"] = []string{url.QueryEscape("1")}
-	html, err := p.Post(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_02.jsp`, form)
+	form.Set("nd", "1")
+
+	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_02.jsp`, form); err != nil {
+		return err
+	}
+
+	html, err := p.ReadBodyString()
 	if err != nil {
 		return err
 	}
@@ -323,21 +246,27 @@ func (p *WebProxy) ThirdRequest() error {
 	// }
 
 	form := make(url.Values)
-	form["man"] = []string{"广东省广州市海珠区"}
-	form["woman"] = []string{"广东省广州市越秀区"}
-	form["msheng"] = []string{"440000"}
-	form["mshi"] = []string{"440100"}
-	form["mqu"] = []string{"440105"}
-	form["wsheng"] = []string{"440000"}
-	form["wshi"] = []string{"440100"}
-	form["wqu"] = []string{"440104"}
-	form["nd"] = []string{"1"}
+	form.Set("man", "广东省广州市海珠区")
+	form.Set("woman", "广东省广州市越秀区")
+	form.Set("msheng", "440000")
+	form.Set("mshi", "440100")
+	form.Set("mqu", "440105")
+	form.Set("wsheng", "440000")
+	form.Set("wshi", "440100")
+	form.Set("wqu", "440104")
+	form.Set("nd", "1")
 
-	p.header["Content-Type"] = []string{`application/x-www-form-urlencoded`}
-	html, err := p.Post(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_03.jsp`, form)
+	//p.header["Content-Type"] = []string{`application/x-www-form-urlencoded`}
+	err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_03.jsp`, form)
 	if err != nil {
 		return err
 	}
+
+	html, err := p.ReadBodyString()
+	if err != nil {
+		return err
+	}
+
 	log.Info(html)
 
 	return nil
@@ -376,20 +305,23 @@ func (p *WebProxy) ThirdRequest() error {
 
 func (p *WebProxy) ForthRequest() error {
 	form := make(url.Values)
-	form["seldate"] = []string{"2017-04-22"}
-	form["r_code"] = []string{"4401041"}
-	form["man"] = []string{"广东省广州市海珠区"}
-	form["woman"] = []string{"广东省广州市越秀区"}
-	form["mqu"] = []string{"440105"}
-	form["wqu"] = []string{"440104"}
-	form["nd"] = []string{"1"}
-	form["xuanzheyydate"] = []string{"2017年04月22日  09:00-09:15"}
-	form["deptname"] = []string{"广州市越秀区民政局婚姻登记处"}
-	form["yytime"] = []string{"09:00_2017-04-22_4401041_09:15"}
-	form["deptname"] = []string{"广州市海珠区民政局婚姻登记处"}
+	form.Set("seldate", "2017-04-22")
+	form.Set("r_code", "4401041")
+	form.Set("man", "广东省广州市海珠区")
+	form.Set("woman", "广东省广州市越秀区")
+	form.Set("mqu", "440105")
+	form.Set("wqu", "440104")
+	form.Set("nd", "1")
+	form.Set("xuanzheyydate", "2017年04月22日  09:00-09:15")
+	form.Set("deptname", "广州市越秀区民政局婚姻登记处")
+	form.Set("yytime", "09:00_2017-04-22_4401041_09:15")
+	form.Set("deptname", "广州市海珠区民政局婚姻登记处")
 
-	p.header["Content-Type"] = []string{`application/x-www-form-urlencoded`}
-	html, err := p.Post(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form)
+	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {
+		return err
+	}
+
+	html, err := p.ReadBodyString()
 	if err != nil {
 		return err
 	}
@@ -449,27 +381,31 @@ func (p *WebProxy) ForthRequest() error {
 
 func (p *WebProxy) FifthRequest() error {
 	form := make(url.Values)
-	form["thisid"] = []string{p.thisID}
-	form["seldate"] = []string{p.getSelDate()}
-	form["mhuji"] = []string{"广东省广州市海珠区"}
-	form["whuji"] = []string{"广东省广州市越秀区"}
-	form["nd"] = []string{"1"}
-	form["str"] = []string{"09:30_2017-04-21_4401041_09:45"}
-	form["xuanzheyydate"] = []string{"2017年04月21日  09:30-09:45"}
-	form["mname"] = []string{"简冠腾"}
-	form["mphone"] = []string{"13570506413"}
-	form["mcardtype"] = []string{"0"}
-	form["midcard"] = []string{"440105199206065775"}
-	form["wname"] = []string{"盛祉君"}
-	form["wphone"] = []string{"15975471716"}
-	form["wcardtype"] = []string{"0"}
-	form["widcard"] = []string{"440102199303104028"}
+	form.Set("thisid", p.thisID)
+	form.Set("seldate", p.getSelDate())
+	form.Set("mhuji", "广东省广州市海珠区")
+	form.Set("whuji", "广东省广州市越秀区")
+	form.Set("nd", "1")
+	form.Set("str", "09:30_2017-04-21_4401041_09:45")
+	form.Set("xuanzheyydate", "2017年04月21日  09:30-09:45")
+	form.Set("mname", "简冠腾")
+	form.Set("mphone", "13570506413")
+	form.Set("mcardtype", "0")
+	form.Set("midcard", "440105199206065775")
+	form.Set("wname", "盛祉君")
+	form.Set("wphone", "15975471716")
+	form.Set("wcardtype", "0")
+	form.Set("widcard", "440102199303104028")
 
-	p.header["Content-Type"] = []string{`application/x-www-form-urlencoded`}
-	html, err := p.Post(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form)
+	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {
+		return err
+	}
+
+	html, err := p.ReadBodyString()
 	if err != nil {
 		return err
 	}
+
 	log.Info(html)
 
 	return nil

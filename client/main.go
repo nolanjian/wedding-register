@@ -1,7 +1,7 @@
 package main
 
 import (
-	"wedding/request"
+	"wedding-register/request"
 
 	"github.com/CodisLabs/codis/pkg/utils/log"
 )
