@@ -229,21 +229,27 @@ func (p *WebProxy) SecondRequest() error {
 
 func (p *WebProxy) ThirdRequest() error {
 
-	// getURLs := []string{
-	// 	`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440000&info=mshi`,
-	// 	`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440100&info=mqu`,
-	// 	`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440000&info=wshi`,
-	// 	`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440100&info=wqu`,
-	// }
+	getURLs := []string{
+		`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440000&info=mshi`,
+		`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440100&info=mqu`,
+		`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440000&info=wshi`,
+		`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440100&info=wqu`,
+	}
 
-	// for _, url := range getURLs {
-	// 	html, err := p.Get(url)
-	// 	if err != nil {
-	// 		log.Error(err)
-	// 		return err
-	// 	}
-	// 	log.Info(html)
-	// }
+	for _, url := range getURLs {
+		if err := p.Get(url, nil); err != nil {
+			log.Error(err)
+			return err
+		}
+
+		html, err := p.ReadBodyString()
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		log.Info(html)
+	}
 
 	form := make(url.Values)
 	form.Set("man", "广东省广州市海珠区")
@@ -303,18 +309,39 @@ func (p *WebProxy) ThirdRequest() error {
 //	|	yytime			|	09:00_2017-04-15_4401041_09:15	|
 //	|	deptname		|	广州市海珠区民政局婚姻登记处		|
 
-func (p *WebProxy) ForthRequest() error {
+type be struct {
+	beg string
+	end string
+}
+
+var begEnd = []be{
+	{"10:00", "10:15"},
+	{"09:45", "10:00"},
+	{"10:15", "10:30"},
+	{"09:30", "09:45"},
+	{"10:30", "10:45"},
+	{"10:45", "11:00"},
+	{"09:15", "09:30"},
+	{"08:45", "09:00"},
+	{"08:30", "08:45"},
+}
+
+func (p *be) xuanzheyydate() string {
+	return p.beg + "-" + p.end
+}
+
+func (p *WebProxy) forthRequest(pBE *be) error {
 	form := make(url.Values)
-	form.Set("seldate", "2017-04-22")
+	form.Set("seldate", "2017-05-06")
 	form.Set("r_code", "4401041")
 	form.Set("man", "广东省广州市海珠区")
 	form.Set("woman", "广东省广州市越秀区")
 	form.Set("mqu", "440105")
 	form.Set("wqu", "440104")
 	form.Set("nd", "1")
-	form.Set("xuanzheyydate", "2017年04月22日  09:00-09:15")
+	form.Set("xuanzheyydate", "2017年05月06日  "+pBE.xuanzheyydate())
 	form.Set("deptname", "广州市越秀区民政局婚姻登记处")
-	form.Set("yytime", "09:00_2017-04-22_4401041_09:15")
+	form.Set("yytime", pBE.beg+"_2017-05-06_4401041_"+pBE.end)
 	form.Set("deptname", "广州市海珠区民政局婚姻登记处")
 
 	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {
@@ -342,6 +369,19 @@ func (p *WebProxy) ForthRequest() error {
 	}
 
 	return nil
+}
+
+func (p *WebProxy) ForthRequest() error {
+
+	log.Debug(begEnd)
+
+	for ii := range begEnd {
+		if p.forthRequest(&begEnd[ii]) == nil {
+			return nil
+		}
+	}
+
+	return errors.New("无可选日期")
 }
 
 // # fifth Request
