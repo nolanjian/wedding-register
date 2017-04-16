@@ -3,12 +3,11 @@ package request
 import (
 	"GoUtils"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-
-	"fmt"
 
 	"github.com/CodisLabs/codis/pkg/utils/log"
 	"github.com/PuerkitoBio/goquery"
