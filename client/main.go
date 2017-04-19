@@ -7,16 +7,15 @@ import (
 	"github.com/CodisLabs/codis/pkg/utils/log"
 )
 
+var local *time.Location
+
+// set layout
+var layout = `01/02/2006 15:04:05 PM`
+
 func timmer(beginTime string) {
-	// set layout
-	layout := `01/02/2006 15:04:05 PM`
 
 	// set local
-	local, err := time.LoadLocation("Local")
-	if err != nil {
-		log.Debug("fuck")
-		return
-	}
+	local, _ = time.LoadLocation("Local")
 
 	// set begin time
 	timeBegin, err := time.ParseInLocation(layout, beginTime, local)
@@ -35,21 +34,21 @@ func timmer(beginTime string) {
 
 	time.Sleep(tsub)
 
-	log.Info("begin at:", time.Now().In(local).Format("01/02/2006 15:04:05"))
+	log.Info("begin at: ", time.Now().In(local).Format(layout))
 }
 
 func main() {
 	proxy := request.GetWebProxy()
 	proxy.SetData("2017-05-19")
 
-	timmer("04/19/2017 17:44:31 PM")
+	timmer("04/19/2017 17:58:15 PM")
 
 	for ii := 0; ii < 10; ii++ {
 		err := proxy.Excute()
 		if err != nil {
 			log.Error(err)
 		} else {
-			log.Info("success")
+			log.Info(time.Now().In(local).Format(layout), " success")
 			break
 		}
 	}

@@ -85,10 +85,10 @@ func (p *WebProxy) Excute() error {
 		return err
 	}
 
-	// if err := p.FifthRequest(); err != nil {
-	// 	log.Error(err)
-	// 	return err
-	// }
+	if err := p.FifthRequest(); err != nil {
+		log.Error(err)
+		return err
+	}
 
 	return nil
 }
@@ -448,12 +448,8 @@ func (p *WebProxy) FifthRequest() error {
 	form.Set("mhuji", "广东省广州市海珠区")
 	form.Set("whuji", "广东省广州市越秀区")
 	form.Set("nd", "1")
-	//form.Set("str", "09:30_2017-05-20_4401041_09:45")
 	form.Set("str", p.yytime)
-	//`09:45_2017-05-19_4401041_10:00`
-	//form.Set("xuanzheyydate", "2017年05月20日  09:30-09:45")
 	form.Set("xuanzheyydate", p.xuanzheyydate)
-	// 2017年05月19日  09:45-10:00
 	form.Set("mname", "简冠腾")
 	form.Set("mphone", "13570506413")
 	form.Set("mcardtype", "0")
@@ -463,16 +459,18 @@ func (p *WebProxy) FifthRequest() error {
 	form.Set("wcardtype", "0")
 	form.Set("widcard", "440102199303104028")
 
-	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {
-		return err
-	}
+	log.Debug(form)
 
-	html, err := p.ReadBodyString()
-	if err != nil {
-		return err
-	}
+	// if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {
+	// 	return err
+	// }
 
-	log.Info(html)
+	// html, err := p.ReadBodyString()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// log.Info(html)
 
 	return nil
 }
