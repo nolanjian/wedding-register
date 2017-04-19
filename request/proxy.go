@@ -15,8 +15,11 @@ import (
 
 type WebProxy struct {
 	utils.HTTPUtil
-	thisID string
-	time   *time.Time
+	thisID        string
+	time          *time.Time
+	seldate       string
+	yytime        string
+	xuanzheyydate string
 }
 
 func GetWebProxy() *WebProxy {
@@ -29,6 +32,9 @@ func GetWebProxy() *WebProxy {
 		},
 		"",
 		nil,
+		"",
+		"",
+		"",
 	}
 }
 
@@ -338,26 +344,27 @@ func (p *be) xuanzheyydate() string {
 
 func (p *WebProxy) forthRequest(pBE *be) error {
 
-	seldate := p.getSelDate()
-	yytime := fmt.Sprintf("%s_%s_4401041_%s", pBE.beg, seldate, pBE.end)
-	xuanzheyydate := fmt.Sprintf("%s  %s", p.getyyData(), pBE.xuanzheyydate())
-
-	log.Debug(seldate)
-	log.Debug(yytime)
-	log.Debug(xuanzheyydate)
+	// seldate := p.getSelDate()
+	// yytime := fmt.Sprintf("%s_%s_4401041_%s", pBE.beg, seldate, pBE.end)
+	// xuanzheyydate := fmt.Sprintf("%s  %s", p.getyyData(), pBE.xuanzheyydate())
+	p.seldate = p.getSelDate()
+	p.yytime = fmt.Sprintf("%s_%s_4401041_%s", pBE.beg, p.seldate, pBE.end)
+	p.xuanzheyydate = fmt.Sprintf("%s  %s", p.getyyData(), pBE.xuanzheyydate())
 
 	form := make(url.Values)
-	form.Set("seldate", seldate) //"2006-01-02"
+	form.Set("seldate", p.seldate) //"2006-01-02"
 	form.Set("r_code", "4401041")
 	form.Set("man", "广东省广州市海珠区")
 	form.Set("woman", "广东省广州市越秀区")
 	form.Set("mqu", "440105")
 	form.Set("wqu", "440104")
 	form.Set("nd", "1")
-	form.Set("xuanzheyydate", xuanzheyydate)
+	form.Set("xuanzheyydate", p.xuanzheyydate)
 	form.Set("deptname", "广州市越秀区民政局婚姻登记处")
-	form.Set("yytime", yytime)
+	form.Set("yytime", p.yytime)
 	form.Set("deptname", "广州市海珠区民政局婚姻登记处")
+
+	log.Debug(form)
 
 	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {
 		return err
@@ -441,8 +448,12 @@ func (p *WebProxy) FifthRequest() error {
 	form.Set("mhuji", "广东省广州市海珠区")
 	form.Set("whuji", "广东省广州市越秀区")
 	form.Set("nd", "1")
-	form.Set("str", "09:30_2017-04-21_4401041_09:45")
-	form.Set("xuanzheyydate", "2017年04月21日  09:30-09:45")
+	//form.Set("str", "09:30_2017-05-20_4401041_09:45")
+	form.Set("str", p.yytime)
+	//`09:45_2017-05-19_4401041_10:00`
+	//form.Set("xuanzheyydate", "2017年05月20日  09:30-09:45")
+	form.Set("xuanzheyydate", p.xuanzheyydate)
+	// 2017年05月19日  09:45-10:00
 	form.Set("mname", "简冠腾")
 	form.Set("mphone", "13570506413")
 	form.Set("mcardtype", "0")

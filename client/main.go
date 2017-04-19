@@ -7,26 +7,50 @@ import (
 	"github.com/CodisLabs/codis/pkg/utils/log"
 )
 
-func timmer() {
-	tm, _ := time.Parse("01/02/2006 15:04:05 PM", "05/20/2017 00:00:10 AM")
-	begTime := tm.Unix()
+func timmer(beginTime string) {
+	// set layout
+	layout := `01/02/2006 15:04:05 PM`
 
-	now := time.Now().Unix()
+	// set local
+	local, err := time.LoadLocation("Local")
+	if err != nil {
+		log.Debug("fuck")
+		return
+	}
 
-	sec := time.Unix(begTime-now, 0).Second()
+	// set begin time
+	timeBegin, err := time.ParseInLocation(layout, beginTime, local)
+	if err != nil {
+		log.Debug("fuck")
+		return
+	}
 
-	ss := time.Duration(sec) * time.Second
+	// set now
+	now := time.Now().In(local)
 
-	log.Info(ss, " to begin")
+	// get deta
+	tsub := timeBegin.Sub(now)
 
-	time.Sleep(ss)
-	log.Info("begin at:", time.Now().Format("01/02/2006 15:04:05"))
+	log.Info(tsub.String(), " to begin")
+
+	time.Sleep(tsub)
+
+	log.Info("begin at:", time.Now().In(local).Format("01/02/2006 15:04:05"))
 }
 
 func main() {
 	proxy := request.GetWebProxy()
-	proxy.SetData("2017-05-10")
-	if err := proxy.Excute(); err != nil {
-		log.Error(err)
+	proxy.SetData("2017-05-19")
+
+	timmer("04/19/2017 17:44:31 PM")
+
+	for ii := 0; ii < 10; ii++ {
+		err := proxy.Excute()
+		if err != nil {
+			log.Error(err)
+		} else {
+			log.Info("success")
+			break
+		}
 	}
 }
