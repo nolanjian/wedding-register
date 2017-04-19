@@ -2,9 +2,8 @@ package main
 
 import (
 	"time"
+	"wedding-register/logger"
 	"wedding-register/request"
-
-	"github.com/CodisLabs/codis/pkg/utils/log"
 )
 
 var local *time.Location
@@ -20,7 +19,7 @@ func timmer(beginTime string) {
 	// set begin time
 	timeBegin, err := time.ParseInLocation(layout, beginTime, local)
 	if err != nil {
-		log.Debug("fuck")
+		logger.GetLogger().Debug("fuck")
 		return
 	}
 
@@ -30,26 +29,58 @@ func timmer(beginTime string) {
 	// get deta
 	tsub := timeBegin.Sub(now)
 
-	log.Info(tsub.String(), " to begin")
+	logger.GetLogger().Info(tsub.String(), " to begin")
 
 	time.Sleep(tsub)
 
-	log.Info("begin at: ", time.Now().In(local).Format(layout))
+	logger.GetLogger().Info("begin at: ", time.Now().In(local).Format(layout))
 }
 
 func main() {
 	proxy := request.GetWebProxy()
-	proxy.SetData("2017-05-19")
+	proxy.SetData("2017-05-20")
 
-	timmer("04/19/2017 17:58:15 PM")
+	timmer("04/20/2017 00:00:00 AM")
 
-	for ii := 0; ii < 10; ii++ {
-		err := proxy.Excute()
-		if err != nil {
-			log.Error(err)
-		} else {
-			log.Info(time.Now().In(local).Format(layout), " success")
+	startStep := make([]int, 9)
+	startStep[0] = 3
+	startStep[1] = 0
+	startStep[2] = 0
+	startStep[3] = 0
+	startStep[4] = 0
+	startStep[5] = 0
+	startStep[6] = 0
+	startStep[7] = 0
+	startStep[8] = 0
+
+	const max = 10000
+
+	sleepTime := make([]time.Duration, 9)
+	sleepTime[0] = 18
+	sleepTime[1] = 18
+	sleepTime[2] = 9
+	sleepTime[3] = 18
+	sleepTime[4] = 28
+	sleepTime[5] = 18
+	sleepTime[6] = 18
+	sleepTime[7] = 18
+	sleepTime[8] = 9
+
+	ii := 0
+	for {
+		logger.GetLogger().Info(time.Now().In(local).Format(layout), " start")
+
+		ii = ii % max
+
+		if err := proxy.Excute(startStep[ii%len(startStep)]); err == nil {
+			logger.GetLogger().Info(time.Now().In(local).Format(layout), " success")
 			break
 		}
+
+		logger.GetLogger().Info(time.Now().In(local).Format(layout), " sleep")
+
+		time.Sleep(time.Second * sleepTime[ii%len(sleepTime)])
+
+		ii++
 	}
 }

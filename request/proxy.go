@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"wedding-register/logger"
 
-	"github.com/CodisLabs/codis/pkg/utils/log"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -22,8 +22,10 @@ type WebProxy struct {
 	xuanzheyydate string
 }
 
+var fns = make([](func() error), 5)
+
 func GetWebProxy() *WebProxy {
-	return &WebProxy{
+	p := &WebProxy{
 		utils.HTTPUtil{
 			Header:   make(http.Header),
 			Client:   new(http.Client),
@@ -36,16 +38,24 @@ func GetWebProxy() *WebProxy {
 		"",
 		"",
 	}
+
+	fns[0] = p.FirstRequest
+	fns[1] = p.SecondRequest
+	fns[2] = p.ThirdRequest
+	fns[3] = p.ForthRequest
+	fns[4] = p.FifthRequest
+
+	return p
 }
 
 func (p *WebProxy) SetData(date string) error {
 	myTime, err := time.Parse("2006-01-02", date)
 	if err != nil {
-		log.Error(err)
+		logger.GetLogger().Error(err)
 		return err
 	}
 	p.time = &myTime
-	log.Debug(p.time)
+	logger.GetLogger().Debug(p.time)
 	return nil
 }
 
@@ -58,36 +68,46 @@ func (p *WebProxy) getyyData() string {
 
 }
 
-func (p *WebProxy) Excute() error {
+type fuck struct {
+	fn [](func() error)
+}
+
+func (p *WebProxy) checkStatusCode() error {
+	status := -1
+	if p == nil || p.Resp == nil {
+		goto RET_ERROR
+	}
+
+	status = p.Resp.StatusCode
+
+	switch status {
+	case 200:
+		return nil
+	default:
+		goto RET_ERROR
+	}
+
+RET_ERROR:
+	return errors.New(fmt.Sprint("error status:", status))
+}
+
+func (p *WebProxy) Excute(start int) error {
 	if p == nil {
 		err := errors.New("empty pointer")
-		log.Error(err)
+		logger.GetLogger().Error(err)
 		return err
 	}
 
-	if err := p.FirstRequest(); err != nil {
-		log.Error(err)
-		return err
-	}
+	for ii := start; ii < 5; ii++ {
+		if err := fns[ii](); err != nil {
+			logger.GetLogger().Error(err)
+			return err
+		}
 
-	if err := p.SecondRequest(); err != nil {
-		log.Error(err)
-		return err
-	}
-
-	if err := p.ThirdRequest(); err != nil {
-		log.Error(err)
-		return err
-	}
-
-	if err := p.ForthRequest(); err != nil {
-		log.Error(err)
-		return err
-	}
-
-	if err := p.FifthRequest(); err != nil {
-		log.Error(err)
-		return err
+		if err := p.checkStatusCode(); err != nil {
+			logger.GetLogger().Error(err)
+			return err
+		}
 	}
 
 	return nil
@@ -114,7 +134,7 @@ func (p *WebProxy) FirstRequest() error {
 	if err != nil {
 		return err
 	}
-	log.Info(html)
+	logger.GetLogger().Info(html)
 
 	return nil
 }
@@ -150,7 +170,7 @@ func (p *WebProxy) SecondRequest() error {
 	if err != nil {
 		return err
 	}
-	log.Info(html)
+	logger.GetLogger().Info(html)
 
 	return nil
 }
@@ -241,27 +261,32 @@ func (p *WebProxy) SecondRequest() error {
 
 func (p *WebProxy) ThirdRequest() error {
 
-	getURLs := []string{
-		`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440000&info=mshi`,
-		`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440100&info=mqu`,
-		`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440000&info=wshi`,
-		`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440100&info=wqu`,
-	}
+	// getURLs := []string{
+	// 	`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440000&info=mshi`,
+	// 	`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440100&info=mqu`,
+	// 	`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440000&info=wshi`,
+	// 	`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj02_return.jsp?class_code=440100&info=wqu`,
+	// }
 
-	for _, url := range getURLs {
-		if err := p.Get(url, nil); err != nil {
-			log.Error(err)
-			return err
-		}
+	// for _, url := range getURLs {
+	// 	if err := p.Get(url, nil); err != nil {
+	// 		log.Error(err)
+	// 		return err
+	// 	}
 
-		html, err := p.ReadBodyString()
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+	// 	html, err := p.ReadBodyString()
+	// 	if err != nil {
+	// 		log.Error(err)
+	// 		return err
+	// 	}
 
-		log.Info(html)
-	}
+	// 	log.Info(html)
+
+	// 	if err := p.checkStatusCode(); err != nil {
+	// 		log.Error(err)
+	// 		return err
+	// 	}
+	// }
 
 	form := make(url.Values)
 	form.Set("man", "广东省广州市海珠区")
@@ -285,7 +310,7 @@ func (p *WebProxy) ThirdRequest() error {
 		return err
 	}
 
-	log.Info(html)
+	logger.GetLogger().Info(html)
 
 	return nil
 }
@@ -364,7 +389,7 @@ func (p *WebProxy) forthRequest(pBE *be) error {
 	form.Set("yytime", p.yytime)
 	form.Set("deptname", "广州市海珠区民政局婚姻登记处")
 
-	log.Debug(form)
+	logger.GetLogger().Debug(form)
 
 	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {
 		return err
@@ -374,11 +399,11 @@ func (p *WebProxy) forthRequest(pBE *be) error {
 	if err != nil {
 		return err
 	}
-	log.Info(html)
+	logger.GetLogger().Info(html)
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
-		log.Error(err)
+		logger.GetLogger().Error(err)
 		return err
 	}
 	thisid := doc.Find("#thisid")
@@ -386,7 +411,7 @@ func (p *WebProxy) forthRequest(pBE *be) error {
 		p.thisID = val
 	} else {
 		err := errors.New("thisid not found")
-		log.Error(err)
+		logger.GetLogger().Error(err)
 		return err
 	}
 
@@ -395,11 +420,16 @@ func (p *WebProxy) forthRequest(pBE *be) error {
 
 func (p *WebProxy) ForthRequest() error {
 
-	log.Debug(begEnd)
+	logger.GetLogger().Debug(begEnd)
 
 	for ii := range begEnd {
 		if p.forthRequest(&begEnd[ii]) == nil {
 			return nil
+		}
+
+		if err := p.checkStatusCode(); err != nil {
+			logger.GetLogger().Error(err)
+			return err
 		}
 	}
 
@@ -441,6 +471,23 @@ func (p *WebProxy) ForthRequest() error {
 // wcardtype	0
 // widcard	440102199303104028
 
+// [DEBUG] map[
+// seldate:[2017-05-19]
+// widcard:[440102199303104028]
+// whuji:[广东省广州市越秀区]
+// str:[09:30_2017-05-19_4401041_09:45]
+// mcardtype:[0]
+// mhuji:[广东省广州市海珠区]
+// nd:[1]
+// midcard:[440105199206065775]
+// wphone:[15975471716]
+// wcardtype:[0]
+// thisid:[5009234156c44d21a397a0d336f5998f]
+// xuanzheyydate:[2017年05月19日  09:30-09:45]
+// mname:[简冠腾]
+// mphone:[13570506413]
+// wname:[盛祉君]]
+
 func (p *WebProxy) FifthRequest() error {
 	form := make(url.Values)
 	form.Set("thisid", p.thisID)
@@ -459,18 +506,18 @@ func (p *WebProxy) FifthRequest() error {
 	form.Set("wcardtype", "0")
 	form.Set("widcard", "440102199303104028")
 
-	log.Debug(form)
+	logger.GetLogger().Debug(form)
 
-	// if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_04.jsp`, form); err != nil {
-	// 	return err
-	// }
+	if err := p.PostForm(`http://wsbs.gzmz.gov.cn/gsmpro/web/jhdj_05.jsp`, form); err != nil {
+		return err
+	}
 
-	// html, err := p.ReadBodyString()
-	// if err != nil {
-	// 	return err
-	// }
+	html, err := p.ReadBodyString()
+	if err != nil {
+		return err
+	}
 
-	// log.Info(html)
+	logger.GetLogger().Info(html)
 
 	return nil
 }
